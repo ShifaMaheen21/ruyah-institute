@@ -19,6 +19,7 @@ import ProgramsPage from './pages/ProgramsPage'
 import FaqPage from './pages/FaqPage'
 import ContactPage from './pages/ContactPage'
 import { QRCodeSVG } from 'qrcode.react'
+import paymentQrImage from './assets/payment-qr.jpeg'
 
 const WHATSAPP_NUMBER = (import.meta.env.VITE_WHATSAPP_NUMBER || '918638854236').replace(/\D/g, '')
 
@@ -437,10 +438,9 @@ function paymentChoices(course) {
   return []
 }
 
-function PaymentQR({ amount, note }) {
+function PaymentQR({ amount, label }) {
   const [copied, setCopied] = useState('')
   const amountText = `₹${amount.toLocaleString('en-IN')}`
-  const upiLink = `upi://pay?pa=${UPI_ID}&pn=${encodeURIComponent(UPI_NAME)}&am=${amount}&cu=INR&tn=${encodeURIComponent(note)}`
   const copyText = async (key, text) => {
     try {
       await navigator.clipboard.writeText(text)
@@ -448,13 +448,13 @@ function PaymentQR({ amount, note }) {
       setTimeout(() => setCopied(''), 2000)
     } catch { setCopied('') }
   }
-  if (!UPI_ID) return <p className="payment-note">Online payment is not set up yet. Continue on WhatsApp and the team will share payment details.</p>
-  return <div className="qr-box enroll-qr">
+  return <div className="fee-qr">
     <h3 className="pay-amount">Pay {amountText}</h3>
-    <QRCodeSVG value={upiLink} size={200} />
-    <p>Scan with any UPI app</p>
+    <p className="fee-qr-label">{label}</p>
+    <img src={paymentQrImage} alt={`QR code to pay ${amountText}`} />
+    <p>Scan with any UPI app and pay <b>{amountText}</b></p>
     <div className="pay-details">
-      <p>UPI ID: <b>{UPI_ID}</b> <button type="button" className="copy-btn" onClick={() => copyText('upi', UPI_ID)}>{copied === 'upi' ? 'Copied!' : 'Copy'}</button></p>
+      {UPI_ID && <p>UPI ID: <b>{UPI_ID}</b> <button type="button" className="copy-btn" onClick={() => copyText('upi', UPI_ID)}>{copied === 'upi' ? 'Copied!' : 'Copy'}</button></p>}
       {BANK.account && <div className="bank-details">
         <h4>Or pay by bank transfer</h4>
         <p>Account name: <b>{BANK.holder}</b></p>
@@ -464,7 +464,7 @@ function PaymentQR({ amount, note }) {
         <p>Amount to pay: <b>{amountText}</b></p>
       </div>}
     </div>
-    <p className="payment-note">After paying, continue enrollment on WhatsApp and send your transaction ID.</p>
+    <p className="payment-note">After paying, fill in the form and continue on WhatsApp. Send your transaction ID or payment screenshot there.</p>
   </div>
 }
 
@@ -488,7 +488,7 @@ function EnrollmentPage() {
     const money = n => `₹${n.toLocaleString('en-IN')}`
     const totalLine = totalPlan ? `\nTotal course fee: ${money(totalPlan.amount)}` : ''
     const durationLine = level ? `\nCourse duration: ${level.duration}` : ''
-    const choiceLine = payChoice ? `Payment: ${payChoice.label} - ${money(payChoice.amount)}` : `Demo class: ${data.demo}`
+    const choiceLine = payChoice ? `Payment: ${payChoice.label} - ${money(payChoice.amount)} (I will send the payment screenshot / transaction ID here)` : `Demo class: ${data.demo}`
     const message = `Assalamu alaikum, I would like to enrol in ${courseName(selected)}.\n\nCourse fee: ${selected.price}${totalLine}${durationLine}\nParticipant: ${data.participant}\nAge: ${data.age}\nGuardian: ${data.guardian || 'Not applicable'}\nEmail: ${data.email}\nPhone: ${data.phone}\nLearning mode: ${data.mode}\n${choiceLine}\nNotes: ${data.note || 'None'}`
     window.open(whatsappUrl(message), '_blank', 'noopener,noreferrer')
   }
@@ -509,18 +509,19 @@ function EnrollmentPage() {
         <div className="two-col"><label>Email Address *<input required type="email" name="email" value={data.email} onChange={update} placeholder="name@example.com" /></label><label>WhatsApp Number *<input required name="phone" value={data.phone} onChange={update} placeholder="Country code + number" /></label></div>
         <label>Preferred Learning Mode<select name="mode" value={data.mode} onChange={update}><option>Self-paced</option><option>Live online sessions</option><option>Not sure — please guide me</option></select></label>
         <fieldset className="choice-group">
-          <legend>Demo Class Preference{payChoices.length > 0 ? ' & Payment' : ''}</legend>
+          <legend>Demo Class Preference{payChoices.length > 0 ? ' or Payment' : ''}</legend>
           {demoOptions.map(opt => <label className="choice" key={opt}><input type="radio" name="demo" value={opt} checked={data.demo === opt} onChange={update} /><span>{opt}</span></label>)}
-          {payChoices.length > 0 && <p className="choice-heading">Payment</p>}
+                    {payChoices.length > 0 && <p className="choice-heading">Payment <small className="choice-note">(for final registration only)</small></p>}
           {payChoices.map(p => <label className="choice" key={p.label}><input type="radio" name="demo" value={p.label} checked={data.demo === p.label} onChange={update} /><span>{p.label} — ₹{p.amount.toLocaleString('en-IN')}</span></label>)}
         </fieldset>
-        {payChoice && <PaymentQR amount={payChoice.amount} note={`${courseName(selected)} - ${payChoice.label}`} />}
+        
         <div className="fee-notice"><span>Course Fee</span><strong>{selected.price}</strong>
           {level && <div className="fee-breakdown">
             {totalPlan && <p>Total course fee: <b>₹{totalPlan.amount.toLocaleString('en-IN')}</b></p>}
             <p>Course duration: <b>{level.duration}</b></p>
             {level.requires && <p>The {level.requires} level must be completed before joining {level.name}.</p>}
           </div>}
+          {payChoice && <PaymentQR amount={payChoice.amount} label={payChoice.label} />}
           <p>The Ruyah team will confirm the final schedule, payment plan and demo-class availability on WhatsApp.</p></div>
         <label>Anything We Should Know?<textarea name="note" value={data.note} onChange={update} placeholder="Goals, current level, preferred schedule or questions" /></label>
         <button className="button dark submit" type="submit">Continue enrollment on WhatsApp</button>
